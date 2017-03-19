@@ -1,0 +1,149 @@
+extends base
+
+block content
+  .row.row-offcanvas.row-offcanvas-right
+    .col-xs-12.col-sm-9
+      p.pull-right.visible-xs
+        button.btn.btn-primary.btn-xs(type='button', data-toggle='offcanvas') Toggle nav
+      .jumbotron
+        if isAuthenticated
+          h2
+            | Hello
+            strong  #{user.nickname}
+          p
+            | Enjoy super privacy. Now! If you have not done it yet, log into the 
+            | HoloLense SuperSecret app using this button.
+          a.btn.btn-success(data-toggle="modal" data-target="#holoModal") Configure HoloLense »
+        else
+          h1 SuperSecret
+          p
+            | SuperSecret is an example to show the potential of encryption between your eyes and your computer!
+            | Try it out. Sign up, log into the HoloLense SuperSecret app and enjoy super privacy!
+          a.btn.btn-success(href='#messageForm') Write a message »
+          a.btn.btn-primary.authenticate(href='#' style="margin-left:15px;") Authenticate »
+      .row
+        .col-lg-12
+          form.form-horizontal#messageForm
+            fieldset
+              legend Write a Legend
+              .form-group
+                label.col-lg-2.control-label(for='inputEmail') Email
+                .col-lg-10
+                  input#inputEmail.form-control(type='text', placeholder='Email', name='recipient')
+              .form-group
+                label.col-lg-2.control-label(for='textArea') Textarea
+                .col-lg-10
+                  textarea#textArea.form-control(rows='7', name='message')
+                  span.help-block
+                    | A longer block of help text that breaks onto a new line and may extend beyond one line.
+              .form-group
+                .col-lg-10.col-lg-offset-2
+                  button.btn.btn-default(type='reset') Cancel
+                  button.btn.btn-success(type='submit') Submit
+
+    #sidebar.col-xs-6.col-sm-3.sidebar-offcanvas
+      if !isAuthenticated
+        h3 Hello 
+        span.help-block
+          | Please sign up here to try the HoloLense SuperSecret!
+          br
+          a.btn.btn-primary.authenticate(href='#' style="margin-top:15px;") Authenticate »
+      h3 Users
+      span.help-block
+        | Click on a user to send a message. No need to login for that.
+      .list-group(style=' max-height: 600px; overflow: scroll;')
+        each user in users
+          a.list-group-item.contact(href='#' data-email=user.email style='padding: 9px 9px;')
+            // name, email, picture
+            img(src=user.picture style='max-width:32px; margin-right: 8px;')
+            | #{user.name}
+              
+block modal
+  .modal#qrModal
+    .modal-dialog
+      .modal-content
+        .modal-header
+          button.close(type='button', data-dismiss='modal', aria-hidden='true') ×
+          h4.modal-title SuperSecret Delivery Bot
+        .modal-body
+
+          .alert.alert-dismissible.alert-success
+            strong Success
+            br
+            | Your message was saved.
+            | Please share the image with the reciepent or send him this link!
+            br
+            a.alert-link.qrLink(href='#' style='text-decoration: underline') .
+          p.text-center 
+            img.qrImage.text-center(src="" style='padding: 25px;')
+        .modal-footer
+          button.btn.btn-default(type='button', data-dismiss='modal') Close
+  if isAuthenticated
+    .modal#holoModal
+      .modal-dialog
+        .modal-content
+          .modal-header
+            button.close(type='button', data-dismiss='modal', aria-hidden='true') ×
+            h4.modal-title HoloLense Setup
+          .modal-body
+
+            .alert.alert-dismissible.alert-info
+              | Use the HoloLense and focus the QR code to install up your privacy.
+            p.text-center 
+              img.qrImage.text-center(src="" style='padding: 25px;')
+              | GPG TOKEN QR CODE HERE.
+          .modal-footer
+            button.btn.btn-default(type='button', data-dismiss='modal') Close
+
+block scripts
+  script.
+    $( ".contact" ).click(function(e) {
+      $('#inputEmail').val(
+        $(e.target).data('email')
+      );
+      e.preventDefault();
+      $('#textArea').focus();
+    });
+
+  script.
+    $(function() {
+      if ($("form#messageForm").length) {
+        $('form#messageForm').submit(function(e) {
+
+          if (e.preventDefault) e.preventDefault();
+          else e.returnValue = false;
+
+          var thisForm = $(this).closest('#messageForm');
+          
+          //- if (validate(false) == false) return false
+
+          jQuery.ajax({
+            type: "POST",
+            url: "/messages/create",
+            data: thisForm.serialize(),
+            success: function(response) {
+              showQrModal(response)
+            },
+            error: function() {
+              showErrorModal()
+            }
+          });
+          return false;
+        });
+      }
+      
+      function showQrModal(response){
+        imageURL = window.location.origin + "/messages/image/" + response
+        showURL = window.location.origin + "/messages/stone/" + response
+        $('#qrModal .qrLink').attr("href", showURL).html(showURL)
+        $('#qrModal .qrImage').attr("src", imageURL)
+        
+        $('#qrModal').modal('show');
+      }
+      
+      function showErrorModal(){
+        $('#qrModal .modal-body').html('<h2>Error. Message not sent. Ask for help!</h2>');
+        $('#qrModal').modal('show');        
+      }
+      
+    });

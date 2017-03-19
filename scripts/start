@@ -1,0 +1,4 @@
+#!/bin/bash
+
+source .secrets
+node-dev server.js

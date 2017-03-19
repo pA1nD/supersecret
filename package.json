@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/pA1nD/supersecret.git"
   },
-  "author": "gigerbytes, pa1nd",
+  "author": "gigerbytes, pa1nd, MVytautas, Vollkorn01",
   "license": "MIT",
   "homepage": "https://supersecretserver.herokuapp.com/",
   "dependencies": {

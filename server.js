@@ -175,7 +175,7 @@ app.get('/logout', function(req, res){
 });
 
 //to: refactor (?)
-app.get('/user/configure', ensureLoggedIn, messages.configure);
+app.get('/user/privkey', ensureLoggedIn, messages.configure);
 
 
 // start server

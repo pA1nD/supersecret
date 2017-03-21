@@ -1,4 +1,5 @@
-var qrCode = require('qr-image')
+var qrCode = require('qr-image');
+var crypto = require('crypto');
 var NodeRSA = require('node-rsa');
 var mongoose = require('mongoose');
 var User = require('models/User');
@@ -11,14 +12,48 @@ var messageSchema = new Schema({
 var Message = mongoose.model('Message', messageSchema);
 
 
+// Helper: Get user by username;
+
+var getUserIfExists = function(username) {
+	User.find({"username": username}, function(err, user){
+		if (err) {
+			 res.status(500).send('Something broke!' + err);
+		}
+		return user[0];
+	});
+}
+
 // Create - Creates a new message
 // Image - Generate QR Code
 // Show - Shows message
 
-exports.configure = function (req, res){
+exports.configure = function (req, res) {
+	// configure only runs when someone's logged in
+	// get pin from post
+	var pin = req.body.pin;
+	user = getUserIfExists(req.body.username);
+
+	hash = crypto.createHash('sha256');
+	hash.update(pin + user.salt);
+	user.passHash = hash.digest('hex');
+
+	if(user.save()){
+		req.send('your pin is saved!');
+	} else {
+		 res.status(500).send('Something broke!' + err)
+	}
+}
+
+exports.privkey = function (req, res){
 	var username = res.locals.user.displayName;
 	User.find({"username": username}, function(err, user){
 		user = user[0];
+
+		// GENERATE SALT + HASH OF PIN
+		var salt = crypto.randomBytes(32).toString('hex');
+		var pass = req.body.pass;
+
+
 		// console.log(user);
 		var privateKey = user.privateKey;
 		// console.log(privateKey);
@@ -42,7 +77,7 @@ exports.create = function( req, res ) {
 
 			var encryptedMessage = publicKey.encrypt(req.body.message, "base64");
 		}
-
+ 
 		Message.create({
 			recipientId: req.body.recipient,
 			// messageBody: encryptedMessage
@@ -71,9 +106,16 @@ exports.image = function(req, res) {
 }
 
 exports.show = function(req, res) {
-	// Authenticate user
-	if(req.body.password == '1234'){
-		messageId = req.param('id');
+	// authenticate pin
+	var pin = req.body.pin; // remind alex to chainge request to pin instead of password
+	user = getUserIfExists(req.body.username);
+
+	reqHash = crypto.createHash('sha256');
+	reqHash.update(pin + user.salt);
+
+	// check if hashes equal
+	if(user.passHash == reqHash.digest('hex')){
+		//user is authenticated
 		Message.findById(messageId, function(err, message) {
 			if (err) res.status(500).send('Something broke!' + err);
 			res.json({'message': message.messageBody});
@@ -81,4 +123,16 @@ exports.show = function(req, res) {
 	} else {
 		res.json({'message': 'Wrong Password, Try Again'});
 	}
+
+	// Authenticate user -hardcoded version
+	// if(req.body.password == '1111'){
+	// 	messageId = req.param('id');
+	// 	Message.findById(messageId, function(err, message) {
+	// 		if (err) res.status(500).send('Something broke!' + err);
+	// 		res.json({'message': message.messageBody});
+	// 	});
+	// } else {
+	// 	res.json({'message': 'Wrong Password, Try Again'});
+
+	// }
 }

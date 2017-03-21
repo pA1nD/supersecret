@@ -35,7 +35,7 @@ exports.configure = function (req, res) {
 
 	hash = crypto.createHash('sha256');
 	hash.update(pin + user.salt);
-	user.passHash = hash.digest('hex');
+	user.passHypash = hash.digest('hex');
 
 	if(user.save()){
 		req.send('your pin is saved!');
@@ -70,18 +70,15 @@ exports.create = function( req, res ) {
 		if (err) res.status(500).send('Something broke!' + err);
 		user = user[0];
 
-		// still wip
-		if (user != undefined){
-			var publicKey = new NodeRSA();
-			publicKey.importKey(user.publicKey, 'pkcs8-public-pem');
+		// encrypt message and create
 
-			var encryptedMessage = publicKey.encrypt(req.body.message, "base64");
-		}
- 
+		var publicKey = new NodeRSA();
+		publicKey.importKey(user.publicKey, 'pkcs8-public-pem');
+		var encryptedMessage = publicKey.encrypt(req.body.message, "hex");
 		Message.create({
 			recipientId: req.body.recipient,
-			// messageBody: encryptedMessage
-			messageBody: req.body.message
+			messageBody: encryptedMessage
+			// messageBody: req.body.message
 		},
 		function (err, message) {
 		  if (err) res.status(500).send('Something broke!' + err);

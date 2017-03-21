@@ -31,15 +31,35 @@ var strategy = new Auth0Strategy({
     return done(null, profile);
   });
 
-var options = { method: 'POST',
-  url: process.env.AUTH0_API_URL,
-  headers: { 'content-type': 'application/json' },
-  body: '{"client_id":"#{process.env.AUTH0_API_CLIENT}","client_secret":"#{process.env.AUTH0_API_SECRET}","audience":"#{process.env.AUTH0_API_AUDIENCE}","grant_type":"client_credentials"}' };
 
-request(options, function (error, response, body) {
-  if (error) throw new Error(error);
-  auth0_test_access_token = body.access_token;
-});
+var auth0_access_token_timestamp = (Date.now() - (1000 * 60 * 60 * 2));
+var auth0_access_token = ""
+
+function refreshJWT(cb){
+  var ONE_HOUR = 60 * 60 * 1000;
+
+  if (((new Date) - auth0_access_token_timestamp) < ONE_HOUR){
+    cb(auth0_access_token);
+  }
+  else {
+    var options = {
+      method: 'POST',
+      url: process.env.AUTH0_API_URL,
+      headers: { 'content-type': 'application/json' },
+      body: `{"client_id":"${process.env.AUTH0_API_CLIENT}",
+        "client_secret":"${process.env.AUTH0_API_SECRET}",
+        "audience":"${process.env.AUTH0_API_AUDIENCE}",
+        "grant_type":"client_credentials"}`
+    };
+    request(options, function (error, response, body) {
+      if (error) throw new Error(error);
+
+      auth0_access_token = JSON.parse(body).access_token;
+      auth0_access_token_timestamp = Date.now();
+      cb(auth0_access_token);
+    });
+  }
+};
 
 // ENCRYPTION HELPER
 //generate
@@ -75,7 +95,7 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 }));
 app.use(cookieParser());
 app.use(session({
-  secret: 'shhhhhhhhh',
+  secret: process.env.COOKIE_SECRET,
   resave: true,
   saveUninitialized: true
 }));
@@ -113,18 +133,19 @@ app.use( (req, res, done) => {
 // home
 app.get('/', function(req, res) {
 
-  var options = { method: 'GET',
-    url: process.env.AUTH0_API_AUDIENCE + "users",
-    headers: { authorization: process.env.AUTH0_API_TOKEN } };
+  refreshJWT( jwt => {
 
-  request(options, function (error, response, users) {
-    if (error) throw new Error(error);
+    var options = { method: 'GET',
+      url: process.env.AUTH0_API_AUDIENCE + "users",
+      headers: { authorization: "Bearer " + jwt } };
+    request(options, function (error, response, users) {
 
-    // name, email, picture
-    res.render("index", {users: JSON.parse(users)});
-  });
+      if (error) throw new Error(error);
+      // name, email, picture
+      res.render("index", {users: JSON.parse(users)});
 
-
+    });
+  })
 });
 
 // messages

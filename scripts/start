@@ -1,4 +1,21 @@
 #!/bin/bash
 
+# sets the environment variables that you need
 source .secrets
+
+# For reference. Our .secrets file looks like this:
+# export MONGODB_URI="..."
+#
+# export AUTH0_DOMAIN="..."
+# export AUTH0_CLIENT_ID="..."
+# export AUTH0_CLIENT_SECRET="..."
+#
+# export AUTH0_API_URL="..."
+# export AUTH0_API_AUDIENCE="..."
+# export AUTH0_API_CLIENT="..."
+# export AUTH0_API_SECRET="..."
+#
+# export COOKIE_SECRET="..."
+
+
 node-dev server.js

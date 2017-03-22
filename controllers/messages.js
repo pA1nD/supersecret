@@ -1,6 +1,5 @@
 var qrCode = require('qr-image');
 var crypto = require('crypto');
-var NodeRSA = require('node-rsa');
 var mongoose = require('mongoose');
 var User = require('../models/User');
 require('../helpers/encryptionHelpers');
@@ -19,7 +18,7 @@ var Message = mongoose.model('Message', messageSchema);
 exports.configure = function (req, res) {
 	// configure only runs when someone's logged in
 	// get pin from post
-	var username = req.body.username;
+	var username = res.locals.user.displayName;
 	var pin = req.body.pin;
 	
 	if(storeUserPin(username, pin)){
@@ -40,26 +39,15 @@ exports.displayPrivkeyQR = function (req, res){
 
 exports.create = function( req, res ) {
 	// encryption module:
-	var recipient = req.body.recipient;
-	User.find({"username": recipient}, function(err, user){
-		if (err) res.status(500).send('Something broke!' + err);
-		user = user[0];
+	var recipientName = req.body.recipient;
+	var message = req.body.message;
 
-		// encrypt message and create
+	if(createEncryptedMessage(recipientName, message)) {
+		res.send(message._id);
+	} else {
+		res.status(500).send('Something broke!' + err);
+	}
 
-		var publicKey = new NodeRSA();
-		publicKey.importKey(user.publicKey, 'pkcs8-public-pem');
-		var encryptedMessage = publicKey.encrypt(req.body.message, "hex");
-		Message.create({
-			recipientId: req.body.recipient,
-			messageBody: encryptedMessage
-			// messageBody: req.body.message
-		},
-		function (err, message) {
-		  if (err) res.status(500).send('Something broke!' + err);
-		  res.send(message._id)
-		})
-	});
 }
 
 exports.stone  = function( req, res ) {
@@ -80,7 +68,8 @@ exports.image = function(req, res) {
 exports.show = function(req, res) {
 	// authenticate pin
 	var pin = req.body.pin; // remind alex to chainge request to pin instead of password
-	var user = req.body.username;
+	var user = res.body.locals.displayName;
+	var messageId = req.param('id'); 
 
 	if(authenticatePin(username, pin)){
 		//user is authenticated

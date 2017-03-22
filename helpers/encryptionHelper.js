@@ -17,7 +17,6 @@ function getUserIfExists(username) {
 // called by authentication function in server.js
 function createUserAcct (username){
 	// query if user exists:
-  var username = userData.displayName;
   User.count({"username": username}, function(err, count){
     if(count == 0) { // no user, go generate a key pair
 
@@ -35,9 +34,26 @@ function createUserAcct (username){
         privateKey: privatePem,
         salt: userSalt,
       });
+
     }
 
   });
+}
+
+function createEncryptedMessage(recipientName, message){
+	recipient = getUserIfExists(recipientName);
+
+	var publicKey = new NodeRSA();
+	publicKey.importKey(recipient.publicKey, 'pkcs8-public-pem');
+	var encryptedMessage = publicKey.encrypt(req.body.message, "hex");
+	Message.create({
+		recipientId: recipientName,
+		messageBody: encryptedMessage
+	},
+	function (err, message) {
+	  if (err) return false;
+	  return message._id;
+	})
 }
 
 function hashPin(salt, pin) {

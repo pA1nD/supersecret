@@ -7,9 +7,9 @@ var ensureLoggedIn = require('connect-ensure-login').ensureLoggedIn();
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
-var NodeRSA = require('node-rsa');
 var messages = require("controllers/messages");
 var User = require("models/User");
+require('helpers/encryptionHelper');
 
 
 // settings
@@ -61,28 +61,6 @@ function refreshJWT(cb){
   }
 };
 
-// ENCRYPTION HELPER
-//generate
-function generateUserKeys(userData){
-  // query if user exists:
-  var username = userData.displayName;
-  User.count({"username": username}, function(err, count){
-    if(count == 0) { // no user, go generate a key pair
-
-      var key = new NodeRSA();
-      key.generateKeyPair();
-      var publicPem = key.exportKey('pkcs8-public-pem');
-      var privatePem = key.exportKey('pkcs8-private-pem');
-
-      User.create({
-        username: username,
-        publicKey: publicPem,
-        privateKey: privatePem
-      });
-    }
-
-  });
-}
 
 // express settings
 var app = express();

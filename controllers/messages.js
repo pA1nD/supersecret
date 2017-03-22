@@ -2,7 +2,8 @@ var qrCode = require('qr-image');
 var crypto = require('crypto');
 var NodeRSA = require('node-rsa');
 var mongoose = require('mongoose');
-var User = require('models/User');
+var User = require('../models/User');
+require('../helpers/encryptionHelpers');
 
 var Schema = mongoose.Schema;
 var messageSchema = new Schema({
@@ -11,18 +12,6 @@ var messageSchema = new Schema({
 });
 var Message = mongoose.model('Message', messageSchema);
 
-
-// Helper: Get user by username;
-
-var getUserIfExists = function(username) {
-	User.find({"username": username}, function(err, user){
-		if (err) {
-			 res.status(500).send('Something broke!' + err);
-		}
-		return user[0];
-	});
-}
-
 // Create - Creates a new message
 // Image - Generate QR Code
 // Show - Shows message
@@ -30,37 +19,23 @@ var getUserIfExists = function(username) {
 exports.configure = function (req, res) {
 	// configure only runs when someone's logged in
 	// get pin from post
+	var username = req.body.username;
 	var pin = req.body.pin;
-	user = getUserIfExists(req.body.username);
-
-	hash = crypto.createHash('sha256');
-	hash.update(pin + user.salt);
-	user.passHypash = hash.digest('hex');
-
-	if(user.save()){
+	
+	if(storeUserPin(username, pin)){
 		req.send('your pin is saved!');
 	} else {
 		 res.status(500).send('Something broke!' + err)
 	}
 }
 
-exports.privkey = function (req, res){
+exports.displayPrivkeyQR = function (req, res){
 	var username = res.locals.user.displayName;
-	User.find({"username": username}, function(err, user){
-		user = user[0];
+	user = getUserIfExists(username);
 
-		// GENERATE SALT + HASH OF PIN
-		var salt = crypto.randomBytes(32).toString('hex');
-		var pass = req.body.pass;
-
-
-		// console.log(user);
-		var privateKey = user.privateKey;
-		// console.log(privateKey);
-		var qr_privkey = qrCode.image(privateKey, { type: 'png' });
-		res.set('Content-Type', 'image/png');
-		qr_privkey.pipe(res);
-	});
+	var qr_privkey = qrCode.image(user.privateKey, { type: 'png' });
+	res.set('Content-Type', 'image/png');
+	qr_privkey.pipe(res);
 }
 
 exports.create = function( req, res ) {
@@ -105,13 +80,9 @@ exports.image = function(req, res) {
 exports.show = function(req, res) {
 	// authenticate pin
 	var pin = req.body.pin; // remind alex to chainge request to pin instead of password
-	user = getUserIfExists(req.body.username);
+	var user = req.body.username;
 
-	reqHash = crypto.createHash('sha256');
-	reqHash.update(pin + user.salt);
-
-	// check if hashes equal
-	if(user.passHash == reqHash.digest('hex')){
+	if(authenticatePin(username, pin)){
 		//user is authenticated
 		Message.findById(messageId, function(err, message) {
 			if (err) res.status(500).send('Something broke!' + err);

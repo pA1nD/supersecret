@@ -90,9 +90,12 @@ block modal
             .alert.alert-dismissible.alert-info
               | Use the HoloLense and focus the QR code to install up your privacy.
             p.text-center 
+              input(placeholder='Enter Your Pin')
+
               img.qrImage.text-center(src="" style='padding: 25px;')
               | GPG TOKEN QR CODE HERE.
           .modal-footer
+            button.btn.btn-success(type='button') Submit
             button.btn.btn-default(type='button', data-dismiss='modal') Close
 
 block scripts

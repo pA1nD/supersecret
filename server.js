@@ -7,10 +7,11 @@ var ensureLoggedIn = require('connect-ensure-login').ensureLoggedIn();
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
-var NodeRSA = require('node-rsa');
 var messages = require("controllers/messages");
-var User = require("models/User");
+var models = require("models");
+var encryptHelp = require('helpers/encryptionHelper');
 
+var User = models.User;
 
 // settings
 var port = process.env.PORT || 3000;
@@ -61,28 +62,6 @@ function refreshJWT(cb){
   }
 };
 
-// ENCRYPTION HELPER
-//generate
-function generateUserKeys(userData){
-  // query if user exists:
-  var username = userData.displayName;
-  User.count({"username": username}, function(err, count){
-    if(count == 0) { // no user, go generate a key pair
-
-      var key = new NodeRSA();
-      key.generateKeyPair();
-      var publicPem = key.exportKey('pkcs8-public-pem');
-      var privatePem = key.exportKey('pkcs8-private-pem');
-
-      User.create({
-        username: username,
-        publicKey: publicPem,
-        privateKey: privatePem
-      });
-    }
-
-  });
-}
 
 // express settings
 var app = express();
@@ -118,7 +97,7 @@ app.use( (req, res, done) => {
 
   if (req.isAuthenticated()) {
     res.locals.isAuthenticated = true
-    generateUserKeys(req.user);
+    encryptHelp.createUserAcct(req.user.displayName);
     res.locals.user = req.user
   }
   else {
@@ -175,7 +154,7 @@ app.get('/logout', function(req, res){
 });
 
 //to: refactor (?)
-app.get('/user/configure', ensureLoggedIn, messages.configure);
+app.get('/user/privkey', ensureLoggedIn, messages.configure);
 
 
 // start server

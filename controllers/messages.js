@@ -1,57 +1,49 @@
-var qrCode = require('qr-image')
-var NodeRSA = require('node-rsa');
+var qrCode = require('qr-image');
+var crypto = require('crypto');
 var mongoose = require('mongoose');
-var User = require('models/User');
-
-var Schema = mongoose.Schema;
-var messageSchema = new Schema({
-	recipientId: String,
-	messageBody: String
-});
-var Message = mongoose.model('Message', messageSchema);
+var models = require('../models');
+var encryptHelp = require('../helpers/encryptionHelper');
 
 
+var User = models.User;
+var Message = models.Message;
 // Create - Creates a new message
 // Image - Generate QR Code
 // Show - Shows message
 
-exports.configure = function (req, res){
+exports.configure = function (req, res) {
+	// configure only runs when someone's logged in
+	// get pin from post
 	var username = res.locals.user.displayName;
-	User.find({"username": username}, function(err, user){
-		user = user[0];
-		// console.log(user);
-		var privateKey = user.privateKey;
-		// console.log(privateKey);
-		var qr_privkey = qrCode.image(privateKey, { type: 'png' });
-		res.set('Content-Type', 'image/png');
-		qr_privkey.pipe(res);
-	});
+	var pin = req.body.pin;
+	
+	if(storeUserPin(username, pin)){
+		req.send('your pin is saved!');
+	} else {
+		 res.status(500).send('Something broke!' + err)
+	}
+}
+
+exports.displayPrivkeyQR = function (req, res){
+	var username = res.locals.user.displayName;
+	user = getUserIfExists(username);
+
+	var qr_privkey = qrCode.image(user.privateKey, { type: 'png' });
+	res.set('Content-Type', 'image/png');
+	qr_privkey.pipe(res);
 }
 
 exports.create = function( req, res ) {
 	// encryption module:
-	var recipient = req.body.recipient;
-	User.find({"username": recipient}, function(err, user){
-		if (err) res.status(500).send('Something broke!' + err);
-		user = user[0];
-
-		// still wip
-		if (user != undefined){
-			var publicKey = new NodeRSA();
-			publicKey.importKey(user.publicKey, 'pkcs8-public-pem');
-
-			var encryptedMessage = publicKey.encrypt(req.body.message, "base64");
+	var recipientName = req.body.recipient;
+	var message = req.body.message;
+	
+	encryptHelp.createEncryptedMessage(recipientName, message, function(messageId){
+		if(messageId != false) {
+			res.send(messageId);
+		} else {
+			res.status(500).send('Something broke!');
 		}
-
-		Message.create({
-			recipientId: req.body.recipient,
-			// messageBody: encryptedMessage
-			messageBody: req.body.message
-		},
-		function (err, message) {
-		  if (err) res.status(500).send('Something broke!' + err);
-		  res.send(message._id)
-		})
 	});
 }
 
@@ -71,9 +63,13 @@ exports.image = function(req, res) {
 }
 
 exports.show = function(req, res) {
-	// Authenticate user
-	if(req.body.password == '1234'){
-		messageId = req.param('id');
+	// authenticate pin
+	var pin = req.body.pin; // remind alex to chainge request to pin instead of password
+	var user = res.body.locals.displayName;
+	var messageId = req.param('id'); 
+
+	if(authenticatePin(username, pin)){
+		//user is authenticated
 		Message.findById(messageId, function(err, message) {
 			if (err) res.status(500).send('Something broke!' + err);
 			res.json({'message': message.messageBody});
@@ -81,4 +77,16 @@ exports.show = function(req, res) {
 	} else {
 		res.json({'message': 'Wrong Password, Try Again'});
 	}
+
+	// Authenticate user -hardcoded version
+	// if(req.body.password == '1111'){
+	// 	messageId = req.param('id');
+	// 	Message.findById(messageId, function(err, message) {
+	// 		if (err) res.status(500).send('Something broke!' + err);
+	// 		res.json({'message': message.messageBody});
+	// 	});
+	// } else {
+	// 	res.json({'message': 'Wrong Password, Try Again'});
+
+	// }
 }

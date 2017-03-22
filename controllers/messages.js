@@ -1,16 +1,12 @@
 var qrCode = require('qr-image');
 var crypto = require('crypto');
 var mongoose = require('mongoose');
-var User = require('../models/User');
-require('../helpers/encryptionHelpers');
+var models = require('../models');
+var encryptHelp = require('../helpers/encryptionHelper');
 
-var Schema = mongoose.Schema;
-var messageSchema = new Schema({
-	recipientId: String,
-	messageBody: String
-});
-var Message = mongoose.model('Message', messageSchema);
 
+var User = models.User;
+var Message = models.Message;
 // Create - Creates a new message
 // Image - Generate QR Code
 // Show - Shows message
@@ -41,13 +37,14 @@ exports.create = function( req, res ) {
 	// encryption module:
 	var recipientName = req.body.recipient;
 	var message = req.body.message;
-
-	if(createEncryptedMessage(recipientName, message)) {
-		res.send(message._id);
-	} else {
-		res.status(500).send('Something broke!' + err);
-	}
-
+	
+	encryptHelp.createEncryptedMessage(recipientName, message, function(messageId){
+		if(messageId != false) {
+			res.send(messageId);
+		} else {
+			res.status(500).send('Something broke!');
+		}
+	});
 }
 
 exports.stone  = function( req, res ) {

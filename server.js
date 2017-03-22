@@ -8,9 +8,10 @@ var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
 var messages = require("controllers/messages");
-var User = require("models/User");
-require('helpers/encryptionHelper');
+var models = require("models");
+var encryptHelp = require('helpers/encryptionHelper');
 
+var User = models.User;
 
 // settings
 var port = process.env.PORT || 3000;
@@ -96,7 +97,7 @@ app.use( (req, res, done) => {
 
   if (req.isAuthenticated()) {
     res.locals.isAuthenticated = true
-    generateUserKeys(req.user);
+    encryptHelp.createUserAcct(req.user.displayName);
     res.locals.user = req.user
   }
   else {
